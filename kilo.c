@@ -19,6 +19,8 @@
 
 /*** defines ***/
 
+// add config file features
+
 #define KILO_VERSION "0.0.1"
 #define KILO_TAB_STOP 8
 #define KILO_QUIT_TIMES 3
@@ -52,7 +54,14 @@ enum editorHighlight {
 #define HL_HIGHLIGHT_NUMBERS (1<<0)
 #define HL_HIGHLIGHT_STRINGS (1<<1)
 
+#define SHOW_LINE_NUMBERS (1<<0)
+
 /*** data ***/
+
+struct editorFeatures {
+  char *configPath;
+  int flags;
+};
 
 struct editorSyntax {
   char *filetype;
@@ -90,6 +99,7 @@ struct editorConfig {
   time_t statusmsg_time;
   struct editorSyntax *syntax;
   struct termios orig_termios;
+  struct editorFeatures features;
 };
 
 struct editorConfig E;
@@ -557,6 +567,75 @@ void editorDelChar() {
 
 /*** file i/o ***/
 
+void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
+  if (strcmp(flag, "SHOW_LINE_NUMBERS") == 0) {
+    int digit = val[0] - '0';
+    if (digit > 1) return;
+    digit = digit<<0;
+    feature->flags = feature->flags | digit;
+  }
+}
+
+void openFeaturesFile(struct editorFeatures* feature, FILE *fp) {
+  char *line = NULL;
+  size_t linecap = 0;
+  ssize_t linelen;
+
+  while (getline(&line, &linecap, fp) != -1) {
+    char linecpy[strlen(line) + 1];
+    strncpy(linecpy, line, strlen(line));
+    strtok(line, "=");
+
+    char val[strlen(linecpy) - strlen(line)]; // dont need to add one, as we are skipping the = sign
+    strncpy(val, linecpy + (strlen(line) + 1), strlen(linecpy) - strlen(line));
+
+    setFeatureFlag(feature, line, val);
+  }
+}
+
+void getEditorFeaturesConfig() {
+  char *path = ".kiloConfig";
+  FILE *fp = fopen(path, "r");
+  struct editorFeatures features;
+  features.flags = 0;
+
+  if (fp != NULL) {
+    openFeaturesFile(&features, fp);
+    fclose(fp);
+  } else {
+    path = getenv("XDG_CONFIG_HOME");
+    if (path == NULL) {
+      path = getenv("HOME");
+      if (path != NULL) strncat(path, "/.config", 9);
+    } //above gets config path of config dir
+
+    if (path != NULL) {
+      char parentPath[strlen(path) + 1];
+      strncpy(parentPath, path, strlen(path));
+      strncat(path, "/kilo/config", 13);
+      fp = fopen(path, "r");
+      if (fp != NULL) {
+        // here load editor features
+        openFeaturesFile(&features, fp); 
+        fclose(fp);
+      }
+      else {
+        // HERE we would initalize the default config of Kilo and write the config file
+
+      }
+    }
+  }
+  features.configPath = path;
+  E.features = features;
+
+  if (E.features.configPath == NULL) {
+    // editorSetStatusMessage("No config path found!");
+    return;
+  } 
+  //editorSetStatusMessage(E.features->configPath);
+
+}
+
 char *editorRowsToString(int *buflen) {
   int totlen = 0;
   int j;
@@ -789,7 +868,8 @@ void editorDrawRows(struct abuf *ab) {
       }
     } else {
       // shows the line numbers
-      writeLineNumbers(ab, filerow);
+      if (E.features.flags & SHOW_LINE_NUMBERS)
+        writeLineNumbers(ab, filerow);
 
       int len = E.row[filerow].rsize - E.coloff;
       if (len < 0) len = 0;
@@ -1084,6 +1164,8 @@ void initEditor() {
 int main(int argc, char *argv[]) {
   enableRawMode();
   initEditor();
+  getEditorFeaturesConfig();
+
   if (argc >= 2) {
     editorOpen(argv[1]);
   }
