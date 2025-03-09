@@ -76,6 +76,7 @@ typedef struct erow {
 
 struct editorConfig {
   int cx, cy;
+  int xOffset;
   int rx;
   int rowoff;
   int coloff;
@@ -725,6 +726,24 @@ void abFree(struct abuf *ab) {
 
 /*** output ***/
 
+void writeLineNumbers(struct abuf *ab, int filerow) {
+  abAppend(ab, " ", 1);
+  char rowNum[80];
+  int TotalChars = snprintf(rowNum, 80, "%d", E.numrows);
+  int numChars = snprintf(rowNum, 80, "%d", filerow + 1);
+
+  abAppend(ab, rowNum, numChars);
+
+  E.xOffset = TotalChars + 2;
+      
+  TotalChars -= numChars;
+  while (TotalChars > 0) {
+    abAppend(ab, " ", 1);
+    TotalChars--;
+  }
+  abAppend(ab, " ", 1);
+}
+
 void editorScroll() {
   E.rx = 0;
   if (E.cy < E.numrows) {
@@ -769,6 +788,9 @@ void editorDrawRows(struct abuf *ab) {
       abAppend(ab, "~", 1);
       }
     } else {
+      // shows the line numbers
+      writeLineNumbers(ab, filerow);
+
       int len = E.row[filerow].rsize - E.coloff;
       if (len < 0) len = 0;
       if (len > E.screencols) len = E.screencols;
@@ -858,7 +880,7 @@ void editorRefreshScreen() {
 
   char buf[32];
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, 
-                                            (E.rx - E.coloff) + 1); // moves cursor to E.cx, E.cy
+                                            (E.rx - E.coloff) + 1 + E.xOffset); // moves cursor to E.cx, E.cy
   abAppend(&ab, buf, strlen(buf));
 
   abAppend(&ab, "\x1b[?25h", 6); //This shows the cursor
@@ -1042,6 +1064,7 @@ void editorProcessKeypress() {
 void initEditor() {
   E.cx = 0;
   E.cy = 0;
+  E.xOffset = 0;
   E.rx = 0;
   E.rowoff = 0;
   E.coloff = 0;
