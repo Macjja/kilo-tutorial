@@ -13,3 +13,8 @@ Then run
  - `make`
 
 And you will have your compiled program
+
+## Source
+
+Followed this guide found at
+https://viewsourcecode.org/snaptoken/kilo/
