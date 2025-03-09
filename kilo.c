@@ -21,7 +21,7 @@
 
 // add config file features
 
-#define KILO_VERSION "0.0.1"
+#define KILO_VERSION "1.1.0"
 #define KILO_TAB_STOP 8
 #define KILO_QUIT_TIMES 3
 
@@ -901,6 +901,10 @@ void editorDrawRows(struct abuf *ab) {
           if (color != current_color) {
             current_color = color;
             char buf[16];
+            if (color != HL_MATCH) {
+              abAppend(ab, "\x1b[49m", 5);
+              abAppend(ab, "\x1b[39m", 5);
+            }
             int clen = snprintf(buf, sizeof(buf), "\x1b[%dm", color);
             abAppend(ab, buf, clen);
           }
