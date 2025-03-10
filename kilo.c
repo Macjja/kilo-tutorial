@@ -132,6 +132,7 @@ struct editorSyntax HLDB[] = {
 void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen();
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
+void editorMoveCursor(int key); 
 
 /*** terminal ***/
 
@@ -533,19 +534,37 @@ void editorInsertChar(int c) {
   E.cx++;
 }
 
+int editorAutoIndent(char *buf, int idx) {
+  erow* row = &E.row[idx - 1];  
+  int i = 0;
+  while (row->chars[i] == ' ' || row->chars[i] == '\t') {
+    i++;
+  }
+  strncpy(buf, row->chars, i);
+  buf[i] = '\0';
+  return i;
+}
+
 void editorInsertNewline() {
+  int cxMove = 0;
   if (E.cx == 0) {
     editorInsertRow(E.cy, "", 0);
   } else {
     erow *row = &E.row[E.cy];
-    editorInsertRow(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+    char buf[strlen(row->chars) + strlen(&row->chars[E.cx]) + 1];
+    cxMove = editorAutoIndent(buf, E.cy + 1);
+
+    strcat(buf, &row->chars[E.cx]);
+
+    editorInsertRow(E.cy + 1, buf, strlen(buf));
+
     row = &E.row[E.cy];
     row->size = E.cx;
     row->chars[row->size] = '\0';
     editorUpdateRow(row);
   }
   E.cy++;
-  E.cx = 0;
+  E.cx = cxMove;
 }
 
 void editorDelChar() {
