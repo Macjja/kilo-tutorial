@@ -596,12 +596,12 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     if (digit > 1) return;
     digit = digit<<0;
     feature->flags = feature->flags | digit;
+  }
   if (strcmp(flag, "AUTO_INDENT") == 0) {
     int digit = val[0] - '0';
     if (digit > 1) return;
     digit = digit<<1;
     feature->flags = feature->flags | digit;
-    }
   }
   if (strcmp(flag, "AUTO_INDENT") == 0) {
     int digit = val[0] - '0';
