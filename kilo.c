@@ -661,7 +661,20 @@ void getEditorFeaturesConfig() {
       }
       else {
         // HERE we would initalize the default config of Kilo and write the config file
+        char buf[] = "SHOW_LINE_NUMBERS=1\nAUTO_INDENT=1\nKILO_TAB_STOP=8\nKILO_QUIT_TIMES=3";
+        int len = strlen(buf);
+        int fd = open(".kiloConfig", O_RDWR | O_CREAT, 0664);
+        if (fd != -1) {
+          if (ftruncate(fd, len) != 1) {
+            if (write(fd, buf, len) != 1) {
+              close(fd);
+              getEditorFeaturesConfig();
+              return;
+            }
+          close(fd);
+          }
 
+        }
       }
     }
   }
