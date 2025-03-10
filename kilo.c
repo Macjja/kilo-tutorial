@@ -55,6 +55,7 @@ enum editorHighlight {
 #define HL_HIGHLIGHT_STRINGS (1<<1)
 
 #define SHOW_LINE_NUMBERS (1<<0)
+#define AUTO_INDENT (1<<1)
 
 /*** data ***/
 
@@ -551,13 +552,16 @@ void editorInsertNewline() {
     editorInsertRow(E.cy, "", 0);
   } else {
     erow *row = &E.row[E.cy];
-    char buf[strlen(row->chars) + strlen(&row->chars[E.cx]) + 1];
-    cxMove = editorAutoIndent(buf, E.cy + 1);
 
-    strcat(buf, &row->chars[E.cx]);
+    if (E.features.flags & AUTO_INDENT) {
+      char buf[strlen(row->chars) + strlen(&row->chars[E.cx]) + 1];
 
-    editorInsertRow(E.cy + 1, buf, strlen(buf));
-
+      cxMove = editorAutoIndent(buf, E.cy + 1);
+      strcat(buf, &row->chars[E.cx]);
+      editorInsertRow(E.cy + 1, buf, strlen(buf));
+    } else {
+      editorInsertRow(E.cy +1, &row->chars[E.cx], row->rsize - E.cx);
+    }
     row = &E.row[E.cy];
     row->size = E.cx;
     row->chars[row->size] = '\0';
@@ -592,6 +596,12 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     if (digit > 1) return;
     digit = digit<<0;
     feature->flags = feature->flags | digit;
+  if (strcmp(flag, "AUTO_INDENT") == 0) {
+    int digit = val[0] - '0';
+    if (digit > 1) return;
+    digit = digit<<1;
+    feature->flags = feature->flags | digit;
+    }
   }
 }
 
