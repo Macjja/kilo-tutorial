@@ -596,12 +596,12 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     if (digit > 1) return;
     digit = digit<<0;
     feature->flags = feature->flags | digit;
+  }
   if (strcmp(flag, "AUTO_INDENT") == 0) {
     int digit = val[0] - '0';
     if (digit > 1) return;
     digit = digit<<1;
     feature->flags = feature->flags | digit;
-    }
   }
 }
 
@@ -617,6 +617,7 @@ void openFeaturesFile(struct editorFeatures* feature, FILE *fp) {
 
     char val[strlen(linecpy) - strlen(line)]; // dont need to add one, as we are skipping the = sign
     strncpy(val, linecpy + (strlen(line) + 1), strlen(linecpy) - strlen(line));
+    val[strcspn(val, "\n")] = 0;
 
     setFeatureFlag(feature, line, val);
   }
