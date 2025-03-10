@@ -1104,7 +1104,12 @@ void editorMoveCursor(int key) {
 void editorProcessKeypress() {
   static int quit_times;
   int c = editorReadKey();
-
+  
+  // dirty fix for setting kilo quit times now that it's not constant
+  switch (c) {
+    case !CTRL_KEY('q'):
+      quit_times = E.KILO_QUIT_TIMES;
+  }
   switch (c) {
     case '\r':
       editorInsertNewline(); 
