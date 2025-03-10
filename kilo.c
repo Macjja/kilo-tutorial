@@ -22,8 +22,6 @@
 // add config file features
 
 #define KILO_VERSION "1.1.1"
-#define KILO_TAB_STOP 8
-#define KILO_QUIT_TIMES 3
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -98,6 +96,8 @@ struct editorConfig {
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
+  int KILO_TAB_STOP;
+  int KILO_QUIT_TIMES;
   struct editorSyntax *syntax;
   struct termios orig_termios;
   struct editorFeatures features;
@@ -417,7 +417,7 @@ int EditorRowCxToRx(erow * row, int cx) {
   int j;
   for (j = 0; j< cx; j++) {
     if (row->chars[j] == '\t')
-      rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP);
+      rx += (E.KILO_TAB_STOP - 1) - (rx % E.KILO_TAB_STOP);
     rx++;
   }
   return rx;
@@ -428,7 +428,7 @@ int editorRowRxToCx(erow *row, int rx) {
   int cx;
   for (cx = 0; cx < row->size; cx++) {
     if (row->chars[cx] == '\t')
-      cur_rx += (KILO_TAB_STOP - 1) - (cur_rx % KILO_TAB_STOP);
+      cur_rx += (E.KILO_TAB_STOP - 1) - (cur_rx % E.KILO_TAB_STOP);
     cur_rx++;
 
     if (cur_rx > rx) return cx;
@@ -443,13 +443,13 @@ void editorUpdateRow(erow *row) {
     if (row->chars[j] == '\t') tabs ++;
 
   free(row->render);
-  row->render = malloc(row->size + tabs*(KILO_TAB_STOP - 1) + 1);
+  row->render = malloc(row->size + tabs*(E.KILO_TAB_STOP - 1) + 1);
   
   int idx = 0;
   for (j = 0; j < row->size; j++) {
     if (row->chars[j] == '\t') {
       row->render[idx++] = ' ';
-      while (idx % KILO_TAB_STOP != 0) row->render[idx++] = ' ';
+      while (idx % E.KILO_TAB_STOP != 0) row->render[idx++] = ' ';
     } else {
       row->render[idx++] = row->chars[j];
     }
@@ -602,6 +602,16 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     if (digit > 1) return;
     digit = digit<<1;
     feature->flags = feature->flags | digit;
+  }
+  if (strcmp(flag, "KILO_TAB_STOP") == 0) {
+    int num = atoi(val);
+    if (num <= 0) return;
+    E.KILO_TAB_STOP = num;
+  }
+  if (strcmp(flag, "KILO_QUIT_TIMES") == 0) {
+    int num = atoi(val);
+    if (num <= 0) return ;
+    E.KILO_QUIT_TIMES = num;
   }
 }
 
@@ -1092,10 +1102,14 @@ void editorMoveCursor(int key) {
 }
 
 void editorProcessKeypress() {
-  static int quit_times = KILO_QUIT_TIMES;
-
+  static int quit_times;
   int c = editorReadKey();
-
+  
+  // dirty fix for setting kilo quit times now that it's not constant
+  switch (c) {
+    case !CTRL_KEY('q'):
+      quit_times = E.KILO_QUIT_TIMES;
+  }
   switch (c) {
     case '\r':
       editorInsertNewline(); 
@@ -1169,7 +1183,7 @@ void editorProcessKeypress() {
       break;
   }
 
-  quit_times = KILO_QUIT_TIMES;
+  quit_times = E.KILO_QUIT_TIMES;
 }
 
 
@@ -1188,6 +1202,8 @@ void initEditor() {
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
+  E.KILO_TAB_STOP = 8;
+  E.KILO_QUIT_TIMES = 3;
   E.syntax = NULL;
 
   if (getWindowsSize(&E.screenrows, &E.screencols) == -1) die("getWindowsSize");
