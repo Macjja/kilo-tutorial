@@ -604,6 +604,7 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     feature->flags = feature->flags | digit;
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (strcmp(flag, "AUTO_INDENT") == 0) {
     int digit = val[0] - '0';
     if (digit > 1) return;
@@ -612,6 +613,8 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
   }
 =======
 >>>>>>> e7455b1 (Add config options for KILO_TAB_STOP and KILO_QUIT_TIMES)
+=======
+>>>>>>> 1d18b375aa8226995350daa31a617c5bda834d06
   if (strcmp(flag, "KILO_TAB_STOP") == 0) {
     int num = atoi(val);
     if (num <= 0) return;
