@@ -21,7 +21,7 @@
 
 // add config file features
 
-#define KILO_VERSION "1.1.1"
+#define KILO_VERSION "1.2.0"
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
