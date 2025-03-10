@@ -21,9 +21,7 @@
 
 // add config file features
 
-#define KILO_VERSION "1.1.1"
-#define KILO_TAB_STOP 8
-#define KILO_QUIT_TIMES 3
+#define KILO_VERSION "1.2.0"
 
 #define CTRL_KEY(k) ((k) & 0x1f)
 
@@ -55,6 +53,7 @@ enum editorHighlight {
 #define HL_HIGHLIGHT_STRINGS (1<<1)
 
 #define SHOW_LINE_NUMBERS (1<<0)
+#define AUTO_INDENT (1<<1)
 
 /*** data ***/
 
@@ -97,6 +96,8 @@ struct editorConfig {
   char *filename;
   char statusmsg[80];
   time_t statusmsg_time;
+  int KILO_TAB_STOP;
+  int KILO_QUIT_TIMES;
   struct editorSyntax *syntax;
   struct termios orig_termios;
   struct editorFeatures features;
@@ -416,7 +417,7 @@ int EditorRowCxToRx(erow * row, int cx) {
   int j;
   for (j = 0; j< cx; j++) {
     if (row->chars[j] == '\t')
-      rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP);
+      rx += (E.KILO_TAB_STOP - 1) - (rx % E.KILO_TAB_STOP);
     rx++;
   }
   return rx;
@@ -427,7 +428,7 @@ int editorRowRxToCx(erow *row, int rx) {
   int cx;
   for (cx = 0; cx < row->size; cx++) {
     if (row->chars[cx] == '\t')
-      cur_rx += (KILO_TAB_STOP - 1) - (cur_rx % KILO_TAB_STOP);
+      cur_rx += (E.KILO_TAB_STOP - 1) - (cur_rx % E.KILO_TAB_STOP);
     cur_rx++;
 
     if (cur_rx > rx) return cx;
@@ -442,13 +443,13 @@ void editorUpdateRow(erow *row) {
     if (row->chars[j] == '\t') tabs ++;
 
   free(row->render);
-  row->render = malloc(row->size + tabs*(KILO_TAB_STOP - 1) + 1);
+  row->render = malloc(row->size + tabs*(E.KILO_TAB_STOP - 1) + 1);
   
   int idx = 0;
   for (j = 0; j < row->size; j++) {
     if (row->chars[j] == '\t') {
       row->render[idx++] = ' ';
-      while (idx % KILO_TAB_STOP != 0) row->render[idx++] = ' ';
+      while (idx % E.KILO_TAB_STOP != 0) row->render[idx++] = ' ';
     } else {
       row->render[idx++] = row->chars[j];
     }
@@ -551,13 +552,16 @@ void editorInsertNewline() {
     editorInsertRow(E.cy, "", 0);
   } else {
     erow *row = &E.row[E.cy];
-    char buf[strlen(row->chars) + strlen(&row->chars[E.cx]) + 1];
-    cxMove = editorAutoIndent(buf, E.cy + 1);
 
-    strcat(buf, &row->chars[E.cx]);
+    if (E.features.flags & AUTO_INDENT) {
+      char buf[strlen(row->chars) + strlen(&row->chars[E.cx]) + 1];
 
-    editorInsertRow(E.cy + 1, buf, strlen(buf));
-
+      cxMove = editorAutoIndent(buf, E.cy + 1);
+      strcat(buf, &row->chars[E.cx]);
+      editorInsertRow(E.cy + 1, buf, strlen(buf));
+    } else {
+      editorInsertRow(E.cy +1, &row->chars[E.cx], row->rsize - E.cx);
+    }
     row = &E.row[E.cy];
     row->size = E.cx;
     row->chars[row->size] = '\0';
@@ -593,6 +597,22 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     digit = digit<<0;
     feature->flags = feature->flags | digit;
   }
+  if (strcmp(flag, "AUTO_INDENT") == 0) {
+    int digit = val[0] - '0';
+    if (digit > 1) return;
+    digit = digit<<1;
+    feature->flags = feature->flags | digit;
+  }
+  if (strcmp(flag, "KILO_TAB_STOP") == 0) {
+    int num = atoi(val);
+    if (num <= 0) return;
+    E.KILO_TAB_STOP = num;
+  }
+  if (strcmp(flag, "KILO_QUIT_TIMES") == 0) {
+    int num = atoi(val);
+    if (num <= 0) return ;
+    E.KILO_QUIT_TIMES = num;
+  }
 }
 
 void openFeaturesFile(struct editorFeatures* feature, FILE *fp) {
@@ -607,6 +627,7 @@ void openFeaturesFile(struct editorFeatures* feature, FILE *fp) {
 
     char val[strlen(linecpy) - strlen(line)]; // dont need to add one, as we are skipping the = sign
     strncpy(val, linecpy + (strlen(line) + 1), strlen(linecpy) - strlen(line));
+    val[strcspn(val, "\n")] = 0;
 
     setFeatureFlag(feature, line, val);
   }
@@ -640,7 +661,20 @@ void getEditorFeaturesConfig() {
       }
       else {
         // HERE we would initalize the default config of Kilo and write the config file
+        char buf[] = "SHOW_LINE_NUMBERS=1\nAUTO_INDENT=1\nKILO_TAB_STOP=8\nKILO_QUIT_TIMES=3";
+        int len = strlen(buf);
+        int fd = open(".kiloConfig", O_RDWR | O_CREAT, 0664);
+        if (fd != -1) {
+          if (ftruncate(fd, len) != 1) {
+            if (write(fd, buf, len) != 1) {
+              close(fd);
+              getEditorFeaturesConfig();
+              return;
+            }
+          close(fd);
+          }
 
+        }
       }
     }
   }
@@ -1081,8 +1115,7 @@ void editorMoveCursor(int key) {
 }
 
 void editorProcessKeypress() {
-  static int quit_times = KILO_QUIT_TIMES;
-
+  static int quit_times;
   int c = editorReadKey();
 
   switch (c) {
@@ -1158,7 +1191,7 @@ void editorProcessKeypress() {
       break;
   }
 
-  quit_times = KILO_QUIT_TIMES;
+  quit_times = E.KILO_QUIT_TIMES;
 }
 
 
@@ -1177,6 +1210,8 @@ void initEditor() {
   E.filename = NULL;
   E.statusmsg[0] = '\0';
   E.statusmsg_time = 0;
+  E.KILO_TAB_STOP = 8;
+  E.KILO_QUIT_TIMES = 3;
   E.syntax = NULL;
 
   if (getWindowsSize(&E.screenrows, &E.screencols) == -1) die("getWindowsSize");
