@@ -603,12 +603,15 @@ void setFeatureFlag(struct editorFeatures* feature, char* flag, char* val) {
     digit = digit<<1;
     feature->flags = feature->flags | digit;
   }
+<<<<<<< HEAD
   if (strcmp(flag, "AUTO_INDENT") == 0) {
     int digit = val[0] - '0';
     if (digit > 1) return;
     digit = digit<<1;
     feature->flags = feature->flags | digit;
   }
+=======
+>>>>>>> e7455b1 (Add config options for KILO_TAB_STOP and KILO_QUIT_TIMES)
   if (strcmp(flag, "KILO_TAB_STOP") == 0) {
     int num = atoi(val);
     if (num <= 0) return;
@@ -1110,7 +1113,12 @@ void editorMoveCursor(int key) {
 void editorProcessKeypress() {
   static int quit_times;
   int c = editorReadKey();
-
+  
+  // dirty fix for setting kilo quit times now that it's not constant
+  switch (c) {
+    case !CTRL_KEY('q'):
+      quit_times = E.KILO_QUIT_TIMES;
+  }
   switch (c) {
     case '\r':
       editorInsertNewline(); 
